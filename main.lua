@@ -1,9 +1,6 @@
 require "conf"
-require "crate"
 require "light"
-local bump = require "bump"
-local cols_len = 0 -- how many collisions are happening
-local world = bump.newWorld() -- World creation
+HC = require "HC"
 
 function love.load()
   math.randomseed(os.time())
@@ -14,13 +11,13 @@ function love.load()
   for i = 1, 6 do
     concrete[i] = love.graphics.newImage("Assets/concrete" .. i - 1 .. ".png")
   end
-  level = {}
+  floor = {}
   for i = 1, screenWidth / 30 + 1 do
-    level[i] = {}
+    floor[i] = {}
     for j = 1, screenHeight / 30 + 1 do
-      level[i][j] = {}
-      level[i][j].tile = concrete[math.random(1, #concrete)]
-      level[i][j].rotation = math.random(1, 4) * math.pi / 2
+      floor[i][j] = {}
+      floor[i][j].tile = concrete[math.random(1, #concrete)]
+      floor[i][j].rotation = math.random(1, 4) * math.pi / 2
     end
   end
   lights = {}
@@ -28,11 +25,14 @@ function love.load()
     Light:Create(math.random(0, screenWidth), math.random(0, screenHeight))
   end
   crates = {}
-  for i = 1, 5 do
-    Crate:Create(math.random(0, screenWidth / 80 - 1), math.random(0, screenHeight / 80 - 1))
-  end
-  for i = 1, #crates do
-    world:add("crate" .. i, crates[i].x, crates[i].y, 80, 80)
+  for i = 1, 6 do
+    local box = {
+      x = math.random(0, 80 * math.floor(screenWidth / 80)),
+      y = math.random(0, 80 * math.floor(screenHeight / 80)),
+    }
+    box.col = HC.rectangle(box.x, box.y, 80, 80)
+    box.col.type = "crate"
+    table.insert(crates, box)
   end
   player = {
     x = 500,
@@ -45,11 +45,10 @@ function love.load()
     speed = 200,
     sprite = love.graphics.newImage("Assets/player.png")
   }
-  world:add(player, player.x, player.y, player.w, player.h)
+  player.col = HC.rectangle(player.x, player.y, player.w, player.h)
 end
 
 function love.update(dt)
-  cols_len = 0
   player.vx, player.vy = 0, 0
   if love.keyboard.isDown("up") or love.keyboard.isDown("w") then
     player.vy = -player.speed * dt
@@ -70,55 +69,67 @@ function love.update(dt)
   if love.keyboard.isDown("escape") then
     love.event.quit()
   end
-
-  if dx ~= 0 or dy ~= 0 then
-    local cols
-    player.x, player.y, cols, cols_len = world:move(player, player.x + player.vx, player.y + player.vy)
+  player.x = player.x + player.vx
+  player.y = player.y + player.vy
+  player.col:move(player.vx, player.vy)
+  --check for and resolve collisions with crates
+  for shape, delta in pairs(HC.collisions(player.col)) do
+    if shape.type == "crate" then
+      -- print(delta.x .. ", " .. delta.y)
+      player.col:move(delta.x, delta.y)
+      player.x = player.x + delta.x
+      player.y = player.y + delta.y
+    elseif shape.type == "shadow" then
+      --deal damage to the player
+    end
   end
 end
 
 function love.draw()
   love.graphics.setColor(1, 1, 1) -- reset color
-  love.graphics.rectangle("fill", 0, 0, screenWidth, screenHeight)
   -- draw floor
   for i = 1, screenWidth / 30 + 1 do
     for j = 1, screenHeight / 30 + 1 do
-      love.graphics.draw(level[i][j].tile, i * 30 - 30 / 2, j * 30 - 30 / 2, level[i][j].rotation, 1, 1, 30 / 2, 30 / 2)
+      love.graphics.draw(floor[i][j].tile, i * 30 - 30 / 2, j * 30 - 30 / 2, floor[i][j].rotation, 1, 1, 30 / 2, 30 / 2)
     end
   end
   -- draw lights
   for i, l in ipairs(lights) do
     -- attach light to player
-    -- l.x = player.x + 40
+    -- l.x = player.x + 20
     -- l.y = player.y + 20
     love.graphics.circle("fill", l.x, l.y, 10)
   end
   --draw light & shadow
   for i, l in ipairs(lights) do
-    for j, c in ipairs(crates) do
-      local topX, topY, botX, botY = selectCorners(l, c)
-      love.graphics.setColor(0, 0, 0, 0.85)
-      local distance = 500
-      love.graphics.polygon(
-        "fill",
-        c.x + botX,
-        c.y + botY,
-        c.x + topX,
-        c.y + topY,
-        c.x + topX + distance * (c.x + topX - l.x),
-        c.y + topY + distance * (c.y + topY - l.y),
-        c.x + botX + distance * (c.x + botX - l.x),
-        c.y + botY + distance * (c.y + botY - l.y)
-      )
-      -- draw lines from light to corners
-      -- love.graphics.line(l.x, l.y, c.x + 80 + 5 * (c.x + 80 - l.x), c.y + 80 + 5 * (c.y + 80 - l.y))
-      -- love.graphics.line(l.x, l.y, c.x + 80 + 5 * (c.x + 80 - l.x), c.y + 5 * (c.y - l.y))
-      -- love.graphics.line(l.x, l.y, c.x + 5 * (c.x - l.x), c.y + 80 + 5 * (c.y + 80 - l.y))
-      -- love.graphics.line(l.x, l.y, c.x + 5 * (c.x - l.x), c.y + 5 * (c.y - l.y))
-      -- draw circles on selected corners
-      -- love.graphics.setColor(1, 1, 1)
-      -- love.graphics.circle("fill", c.x + topX, c.y + topY, 5)
-      -- love.graphics.circle("fill", c.x + botX, c.y + botY, 5)
+    if l.on then
+      for j, c in ipairs(crates) do
+        local top, bot = selectCorners(l, c)
+        local topX, topY = cornerNumToOffset(top)
+        local botX, botY = cornerNumToOffset(bot)
+        love.graphics.setColor(0, 0, 0, 0.75)
+        local distance = 200
+        love.graphics.polygon(
+          "fill",
+          c.x + botX,
+          c.y + botY,
+          c.x + topX,
+          c.y + topY,
+          c.x + topX + distance * (c.x + topX - l.x),
+          c.y + topY + distance * (c.y + topY - l.y),
+          c.x + botX + distance * (c.x + botX - l.x),
+          c.y + botY + distance * (c.y + botY - l.y)
+        )
+        -- love.graphics.setColor(1, 1, 1)
+        -- -- draw lines from light to corners
+        -- love.graphics.line(l.x, l.y, c.x + 80 + 5 * (c.x + 80 - l.x), c.y + 80 + 5 * (c.y + 80 - l.y))
+        -- love.graphics.line(l.x, l.y, c.x + 80 + 5 * (c.x + 80 - l.x), c.y + 5 * (c.y - l.y))
+        -- love.graphics.line(l.x, l.y, c.x + 5 * (c.x - l.x), c.y + 80 + 5 * (c.y + 80 - l.y))
+        -- love.graphics.line(l.x, l.y, c.x + 5 * (c.x - l.x), c.y + 5 * (c.y - l.y))
+        -- -- draw circles on selected corners
+        -- love.graphics.circle("fill", c.x + topX, c.y + topY, 5)
+        -- love.graphics.circle("fill", c.x + botX, c.y + botY, 5)
+      end
     end
   end
   love.graphics.setColor(1, 1, 1)
@@ -156,9 +167,11 @@ function selectCorners(l, c)
       end
     end
   end
-  local topX, topY = cornerNumToOffset(top)
-  local botX, botY = cornerNumToOffset(bot)
-  return topX, topY, botX, botY
+  return top, bot
+end
+
+function findSlope(x1, y1, x2, y2)
+  return (-y2 + y1) / (x2 - x1)
 end
 
 function cornerNumToOffset(cornerNum)
@@ -173,8 +186,4 @@ function cornerNumToOffset(cornerNum)
   else
     return 160, 160 -- error state
   end
-end
-
-function findSlope(x1, y1, x2, y2)
-  return (-y2 + y1) / (x2 - x1)
 end
