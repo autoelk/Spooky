@@ -25,10 +25,10 @@ function love.load()
     Light:Create(math.random(0, screenWidth), math.random(0, screenHeight))
   end
   crates = {}
-  for i = 1, 6 do
+  for i = 1, 10 do
     local box = {
-      x = math.random(0, 80 * math.floor(screenWidth / 80)),
-      y = math.random(0, 80 * math.floor(screenHeight / 80)),
+      x = 80 * math.random(0, math.floor(screenWidth / 80)),
+      y = 80 * math.random(0, math.floor(screenHeight / 80)),
     }
     box.col = HC.rectangle(box.x, box.y, 80, 80)
     box.col.type = "crate"
@@ -43,9 +43,20 @@ function love.load()
     h = 45,
     dir = 0,
     speed = 200,
+    health = 100,
     sprite = love.graphics.newImage("Assets/player.png")
   }
   player.col = HC.rectangle(player.x, player.y, player.w, player.h)
+  --preload shadow collisions
+  for i, l in ipairs(lights) do
+    if l.on then
+      for j, c in ipairs(crates) do
+        c.shadow = {}
+        c.shadow[i] = HC.polygon(offsetsToPolygon(l, c))
+        c.shadow[i].type = "shadow"
+      end
+    end
+  end
 end
 
 function love.update(dt)
@@ -74,6 +85,7 @@ function love.update(dt)
   player.col:move(player.vx, player.vy)
   --check for and resolve collisions with crates
   for shape, delta in pairs(HC.collisions(player.col)) do
+    print(shape.type)
     if shape.type == "crate" then
       -- print(delta.x .. ", " .. delta.y)
       player.col:move(delta.x, delta.y)
@@ -81,8 +93,10 @@ function love.update(dt)
       player.y = player.y + delta.y
     elseif shape.type == "shadow" then
       --deal damage to the player
+      player.health = player.health - 2 * dt
     end
   end
+  player.health = player.health + dt
 end
 
 function love.draw()
@@ -100,32 +114,19 @@ function love.draw()
     -- l.y = player.y + 20
     love.graphics.circle("fill", l.x, l.y, 10)
   end
-  --draw light & shadow
+  --draw shadow
   for i, l in ipairs(lights) do
     if l.on then
       for j, c in ipairs(crates) do
-        local top, bot = selectCorners(l, c)
-        local topX, topY = cornerNumToOffset(top)
-        local botX, botY = cornerNumToOffset(bot)
-        love.graphics.setColor(0, 0, 0, 0.75)
-        local distance = 200
-        love.graphics.polygon(
-          "fill",
-          c.x + botX,
-          c.y + botY,
-          c.x + topX,
-          c.y + topY,
-          c.x + topX + distance * (c.x + topX - l.x),
-          c.y + topY + distance * (c.y + topY - l.y),
-          c.x + botX + distance * (c.x + botX - l.x),
-          c.y + botY + distance * (c.y + botY - l.y)
-        )
+        love.graphics.setColor(0, 0, 0)
+        love.graphics.polygon("fill", offsetsToPolygon(l, c))
+        -- local distance = 200
         -- love.graphics.setColor(1, 1, 1)
         -- -- draw lines from light to corners
-        -- love.graphics.line(l.x, l.y, c.x + 80 + 5 * (c.x + 80 - l.x), c.y + 80 + 5 * (c.y + 80 - l.y))
-        -- love.graphics.line(l.x, l.y, c.x + 80 + 5 * (c.x + 80 - l.x), c.y + 5 * (c.y - l.y))
-        -- love.graphics.line(l.x, l.y, c.x + 5 * (c.x - l.x), c.y + 80 + 5 * (c.y + 80 - l.y))
-        -- love.graphics.line(l.x, l.y, c.x + 5 * (c.x - l.x), c.y + 5 * (c.y - l.y))
+        -- love.graphics.line(l.x, l.y, c.x + 80 + distance * (c.x + 80 - l.x), c.y + 80 + distance * (c.y + 80 - l.y))
+        -- love.graphics.line(l.x, l.y, c.x + 80 + distance * (c.x + 80 - l.x), c.y + distance * (c.y - l.y))
+        -- love.graphics.line(l.x, l.y, c.x + distance * (c.x - l.x), c.y + 80 + distance * (c.y + 80 - l.y))
+        -- love.graphics.line(l.x, l.y, c.x + distance * (c.x - l.x), c.y + distance * (c.y - l.y))
         -- -- draw circles on selected corners
         -- love.graphics.circle("fill", c.x + topX, c.y + topY, 5)
         -- love.graphics.circle("fill", c.x + botX, c.y + botY, 5)
@@ -139,6 +140,24 @@ function love.draw()
   end
   -- draw character
   love.graphics.draw(player.sprite, player.x + 45 / 2, player.y + 45 / 2, player.dir * math.pi / 2, 1, 1, 80 / 2, 45 / 2)
+  -- draw health overlay
+  love.graphics.setColor(1, 0, 0, 100 - player.health)
+  love.graphics.rectangle("fill", 0, 0, screenWidth, screenHeight)
+end
+
+function offsetsToPolygon(l, c)
+  local top, bot = selectCorners(l, c)
+  local topX, topY = cornerNumToOffset(top)
+  local botX, botY = cornerNumToOffset(bot)
+  local distance = 200
+  return c.x + botX,
+  c.y + botY,
+  c.x + topX,
+  c.y + topY,
+  c.x + topX + distance * (c.x + topX - l.x),
+  c.y + topY + distance * (c.y + topY - l.y),
+  c.x + botX + distance * (c.x + botX - l.x),
+  c.y + botY + distance * (c.y + botY - l.y)
 end
 
 function selectCorners(l, c)
