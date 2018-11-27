@@ -1,5 +1,4 @@
 require "conf"
-require "light"
 HC = require "HC"
 
 function love.load()
@@ -22,7 +21,7 @@ function love.load()
   end
   lights = {}
   for i = 1, 2 do
-    Light:Create(math.random(0, screenWidth), math.random(0, screenHeight))
+    lightCreate(math.random(0, screenWidth), math.random(0, screenHeight))
   end
   crates = {}
   for i = 1, 10 do
@@ -49,12 +48,11 @@ function love.load()
   player.col = HC.rectangle(player.x, player.y, player.w, player.h)
   --preload shadow collisions
   for i, l in ipairs(lights) do
-    if l.on then
-      for j, c in ipairs(crates) do
-        c.shadow = {}
-        c.shadow[i] = HC.polygon(offsetsToPolygon(l, c))
-        c.shadow[i].type = "shadow"
-      end
+    for j, c in ipairs(crates) do
+      c.shadow = {}
+      c.shadow[i] = HC.polygon(offsetsToPolygon(l, c))
+      c.shadow[i].on = l.on
+      c.shadow[i].type = "shadow"
     end
   end
 end
@@ -83,7 +81,7 @@ function love.update(dt)
   player.x = player.x + player.vx
   player.y = player.y + player.vy
   player.col:move(player.vx, player.vy)
-  --check for and resolve collisions with crates
+  --check for and resolve collisions
   for shape, delta in pairs(HC.collisions(player.col)) do
     print(shape.type)
     if shape.type == "crate" then
@@ -91,12 +89,12 @@ function love.update(dt)
       player.col:move(delta.x, delta.y)
       player.x = player.x + delta.x
       player.y = player.y + delta.y
-    elseif shape.type == "shadow" then
+    elseif shape.type == "shadow" and shape.on then
       --deal damage to the player
-      player.health = player.health - 2 * dt
+      player.health = player.health - 10 * dt
     end
   end
-  player.health = player.health + dt
+  player.health = player.health + 5 * dt
 end
 
 function love.draw()
@@ -141,7 +139,7 @@ function love.draw()
   -- draw character
   love.graphics.draw(player.sprite, player.x + 45 / 2, player.y + 45 / 2, player.dir * math.pi / 2, 1, 1, 80 / 2, 45 / 2)
   -- draw health overlay
-  love.graphics.setColor(1, 0, 0, 100 - player.health)
+  love.graphics.setColor(1, 0, 0, (100 - player.health) / 100)
   love.graphics.rectangle("fill", 0, 0, screenWidth, screenHeight)
 end
 
@@ -189,10 +187,6 @@ function selectCorners(l, c)
   return top, bot
 end
 
-function findSlope(x1, y1, x2, y2)
-  return (-y2 + y1) / (x2 - x1)
-end
-
 function cornerNumToOffset(cornerNum)
   if cornerNum == 1 then
     return 80, 80
@@ -205,4 +199,18 @@ function cornerNumToOffset(cornerNum)
   else
     return 160, 160 -- error state
   end
+end
+
+function findSlope(x1, y1, x2, y2)
+  return (-y2 + y1) / (x2 - x1)
+end
+
+function lightCreate(x, y)
+  local light = {
+    x = x or math.floor(math.random(0, screenWidth / 80)),
+    y = y or math.floor(math.random(0, screenHeight / 80)),
+    on = true,
+  }
+  table.insert(lights, light)
+  return light
 end
