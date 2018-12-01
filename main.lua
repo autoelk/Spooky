@@ -1,15 +1,17 @@
 require "conf"
-HC = require "HC"
+HC = require "HC" -- this is a library that I did not create
 
 function love.load()
   math.randomseed(os.time())
   screenHeight = love.graphics.getHeight()
   screenWidth = love.graphics.getWidth()
+  --load in textures
   crate = love.graphics.newImage("Assets/crate.png")
   concrete = {}
   for i = 1, 6 do
     concrete[i] = love.graphics.newImage("Assets/concrete" .. i - 1 .. ".png")
   end
+  --generate floor
   floor = {}
   for i = 1, screenWidth / 30 + 1 do
     floor[i] = {}
@@ -19,10 +21,12 @@ function love.load()
       floor[i][j].rotation = math.random(1, 4) * math.pi / 2
     end
   end
+  --place lights
   lights = {}
   for i = 1, 2 do
-    lightCreate(math.random(0, screenWidth), math.random(0, screenHeight))
+    lightCreate()
   end
+  --place crates
   crates = {}
   for i = 1, 10 do
     local box = {
@@ -58,6 +62,7 @@ function love.load()
 end
 
 function love.update(dt)
+  --movement
   player.vx, player.vy = 0, 0
   if love.keyboard.isDown("up") or love.keyboard.isDown("w") then
     player.vy = -player.speed * dt
@@ -78,10 +83,27 @@ function love.update(dt)
   if love.keyboard.isDown("escape") then
     love.event.quit()
   end
+  --apply movement
   player.x = player.x + player.vx
   player.y = player.y + player.vy
   player.col:move(player.vx, player.vy)
+  --boundries
+  if player.x < 0 then
+    player.col:move(- player.x, 0)
+    player.x = 0
+  elseif player.x > screenWidth - 45 then
+    player.col:move((screenWidth - 45) - player.x, 0)
+    player.x = screenWidth - 45
+  end
+  if player.y < 0 then
+    player.col:move(0, - player.y)
+    player.y = 0
+  elseif player.y > screenHeight - 45 then
+    player.col:move(0, (screenHeight - 45) - player.y)
+    player.y = screenHeight - 45
+  end
   --check for and resolve collisions
+  nearSwitch = nil;
   for shape, delta in pairs(HC.collisions(player.col)) do
     print(shape.type)
     if shape.type == "crate" then
@@ -90,11 +112,28 @@ function love.update(dt)
       player.x = player.x + delta.x
       player.y = player.y + delta.y
     elseif shape.type == "shadow" and shape.on then
-      --deal damage to the player
-      player.health = player.health - 10 * dt
+      player.health = player.health - 200 * dt --deal damage to the player
+    end
+    if shape.type == "switch" then
+      nearSwitch = shape;
     end
   end
-  player.health = player.health + 5 * dt
+  --heal player
+  player.health = player.health + 100 * dt
+  if player.health > 100 then
+    player.health = 100
+  end
+  if player.health < 0 then
+    player.health = 0
+  end
+  --light switches
+  if love.keyboard.isDown() then
+    if l.on then
+      l.on = false
+    else
+      l.on = true
+    end
+  end
 end
 
 function love.draw()
@@ -105,21 +144,14 @@ function love.draw()
       love.graphics.draw(floor[i][j].tile, i * 30 - 30 / 2, j * 30 - 30 / 2, floor[i][j].rotation, 1, 1, 30 / 2, 30 / 2)
     end
   end
-  -- draw lights
-  for i, l in ipairs(lights) do
-    -- attach light to player
-    -- l.x = player.x + 20
-    -- l.y = player.y + 20
-    love.graphics.circle("fill", l.x, l.y, 10)
-  end
   --draw shadow
   for i, l in ipairs(lights) do
     if l.on then
       for j, c in ipairs(crates) do
         love.graphics.setColor(0, 0, 0)
         love.graphics.polygon("fill", offsetsToPolygon(l, c))
-        -- local distance = 200
         -- love.graphics.setColor(1, 1, 1)
+        -- local distance = 200
         -- -- draw lines from light to corners
         -- love.graphics.line(l.x, l.y, c.x + 80 + distance * (c.x + 80 - l.x), c.y + 80 + distance * (c.y + 80 - l.y))
         -- love.graphics.line(l.x, l.y, c.x + 80 + distance * (c.x + 80 - l.x), c.y + distance * (c.y - l.y))
@@ -131,16 +163,32 @@ function love.draw()
       end
     end
   end
-  love.graphics.setColor(1, 1, 1)
+  love.graphics.setColor(1, 1, 1) -- reset colors
   -- draw crates
   for i, c in ipairs(crates) do
     love.graphics.draw(crate, c.x, c.y)
   end
   -- draw character
   love.graphics.draw(player.sprite, player.x + 45 / 2, player.y + 45 / 2, player.dir * math.pi / 2, 1, 1, 80 / 2, 45 / 2)
+  -- draw lights
+  for i, l in ipairs(lights) do
+    -- attach light to player
+    -- l.x = player.x + 20
+    -- l.y = player.y + 20
+    love.graphics.setColor(l.color)
+    love.graphics.circle("fill", l.x, l.y, 10)
+    love.graphics.rectangle("fill", l.switchx, l.switchy, 20, 20)
+  end
   -- draw health overlay
-  love.graphics.setColor(1, 0, 0, (100 - player.health) / 100)
+  love.graphics.setColor(1, 0, 0, (100 - player.health) / 200)
   love.graphics.rectangle("fill", 0, 0, screenWidth, screenHeight)
+  -- draw light switch overlay
+  if nearSwitch then
+    love.graphics.setColor(1, 1, 1)
+    love.graphics.rectangle("fill", (screenWidth - 200) / 2, screenHeight - 150, 200, 100)
+    love.graphics.setColor(0, 0, 0)
+    love.graphics.printf("Press E to Switch", (screenWidth - 200) / 2, screenHeight - 150, 200, "center")
+  end
 end
 
 function offsetsToPolygon(l, c)
@@ -205,12 +253,17 @@ function findSlope(x1, y1, x2, y2)
   return (-y2 + y1) / (x2 - x1)
 end
 
-function lightCreate(x, y)
+
+function lightCreate(x, y, switchx, switchy)
   local light = {
-    x = x or math.floor(math.random(0, screenWidth / 80)),
-    y = y or math.floor(math.random(0, screenHeight / 80)),
+    x = x or math.random(0, screenWidth),
+    y = y or math.random(0, screenHeight),
+    switchx = switchx or math.random(0, screenWidth),
+    switchy = switchy or math.random(0, screenHeight),
+    color = {math.random(0, 255) / 255, math.random(0, 255) / 255, math.random(0, 255 / 255)},
     on = true,
   }
   table.insert(lights, light)
-  return light
+  light.switchcol = HC.rectangle(light.switchx, light.switchy, 20, 20)
+  light.switchcol.type = "switch"
 end
