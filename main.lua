@@ -3,13 +3,15 @@ HC = require "HC" -- this is a library that I did not create
 
 function love.load()
   math.randomseed(os.time())
-  screenHeight = love.graphics.getHeight()
-  screenWidth = love.graphics.getWidth()
+  lg = love.graphics
+  lk = love.keyboard
+  screenHeight = lg.getHeight()
+  screenWidth = lg.getWidth()
   --load in textures
-  crate = love.graphics.newImage("Assets/crate.png")
+  crate = lg.newImage("Assets/crate.png")
   concrete = {}
   for i = 1, 6 do
-    concrete[i] = love.graphics.newImage("Assets/concrete" .. i - 1 .. ".png")
+    concrete[i] = lg.newImage("Assets/concrete" .. i - 1 .. ".png")
   end
   --generate floor
   floor = {}
@@ -47,7 +49,7 @@ function love.load()
     dir = 0,
     speed = 200,
     health = 100,
-    sprite = love.graphics.newImage("Assets/player.png")
+    sprite = lg.newImage("Assets/player.png")
   }
   player.col = HC.rectangle(player.x, player.y, player.w, player.h)
   --preload shadow collisions
@@ -64,23 +66,23 @@ end
 function love.update(dt)
   --movement
   player.vx, player.vy = 0, 0
-  if love.keyboard.isDown("up") or love.keyboard.isDown("w") then
+  if lk.isDown("up") or lk.isDown("w") then
     player.vy = -player.speed * dt
     player.dir = 0
   end
-  if love.keyboard.isDown("right") or love.keyboard.isDown("d") then
+  if lk.isDown("right") or lk.isDown("d") then
     player.vx = player.speed * dt
     player.dir = 1
   end
-  if love.keyboard.isDown("down") or love.keyboard.isDown("s") then
+  if lk.isDown("down") or lk.isDown("s") then
     player.vy = player.speed * dt
     player.dir = 2
   end
-  if love.keyboard.isDown("left") or love.keyboard.isDown("a") then
+  if lk.isDown("left") or lk.isDown("a") then
     player.vx = -player.speed * dt
     player.dir = 3
   end
-  if love.keyboard.isDown("escape") then
+  if lk.isDown("escape") then
     love.event.quit()
   end
   --apply movement
@@ -127,7 +129,7 @@ function love.update(dt)
     player.health = 0
   end
   --light switches
-  if love.keyboard.isDown() then
+  if lk.isDown() then
     if l.on then
       l.on = false
     else
@@ -137,57 +139,57 @@ function love.update(dt)
 end
 
 function love.draw()
-  love.graphics.setColor(1, 1, 1) -- reset color
+  lg.setColor(1, 1, 1) -- reset color
   -- draw floor
   for i = 1, screenWidth / 30 + 1 do
     for j = 1, screenHeight / 30 + 1 do
-      love.graphics.draw(floor[i][j].tile, i * 30 - 30 / 2, j * 30 - 30 / 2, floor[i][j].rotation, 1, 1, 30 / 2, 30 / 2)
+      lg.draw(floor[i][j].tile, i * 30 - 30 / 2, j * 30 - 30 / 2, floor[i][j].rotation, 1, 1, 30 / 2, 30 / 2)
     end
   end
   --draw shadow
   for i, l in ipairs(lights) do
     if l.on then
       for j, c in ipairs(crates) do
-        love.graphics.setColor(0, 0, 0)
-        love.graphics.polygon("fill", offsetsToPolygon(l, c))
-        -- love.graphics.setColor(1, 1, 1)
+        lg.setColor(0, 0, 0)
+        lg.polygon("fill", offsetsToPolygon(l, c))
+        -- lg.setColor(1, 1, 1)
         -- local distance = 200
         -- -- draw lines from light to corners
-        -- love.graphics.line(l.x, l.y, c.x + 80 + distance * (c.x + 80 - l.x), c.y + 80 + distance * (c.y + 80 - l.y))
-        -- love.graphics.line(l.x, l.y, c.x + 80 + distance * (c.x + 80 - l.x), c.y + distance * (c.y - l.y))
-        -- love.graphics.line(l.x, l.y, c.x + distance * (c.x - l.x), c.y + 80 + distance * (c.y + 80 - l.y))
-        -- love.graphics.line(l.x, l.y, c.x + distance * (c.x - l.x), c.y + distance * (c.y - l.y))
+        -- lg.line(l.x, l.y, c.x + 80 + distance * (c.x + 80 - l.x), c.y + 80 + distance * (c.y + 80 - l.y))
+        -- lg.line(l.x, l.y, c.x + 80 + distance * (c.x + 80 - l.x), c.y + distance * (c.y - l.y))
+        -- lg.line(l.x, l.y, c.x + distance * (c.x - l.x), c.y + 80 + distance * (c.y + 80 - l.y))
+        -- lg.line(l.x, l.y, c.x + distance * (c.x - l.x), c.y + distance * (c.y - l.y))
         -- -- draw circles on selected corners
-        -- love.graphics.circle("fill", c.x + topX, c.y + topY, 5)
-        -- love.graphics.circle("fill", c.x + botX, c.y + botY, 5)
+        -- lg.circle("fill", c.x + topX, c.y + topY, 5)
+        -- lg.circle("fill", c.x + botX, c.y + botY, 5)
       end
     end
   end
-  love.graphics.setColor(1, 1, 1) -- reset colors
+  lg.setColor(1, 1, 1) -- reset colors
   -- draw crates
   for i, c in ipairs(crates) do
-    love.graphics.draw(crate, c.x, c.y)
+    lg.draw(crate, c.x, c.y)
   end
   -- draw character
-  love.graphics.draw(player.sprite, player.x + 45 / 2, player.y + 45 / 2, player.dir * math.pi / 2, 1, 1, 80 / 2, 45 / 2)
+  lg.draw(player.sprite, player.x + 45 / 2, player.y + 45 / 2, player.dir * math.pi / 2, 1, 1, 80 / 2, 45 / 2)
   -- draw lights
   for i, l in ipairs(lights) do
     -- attach light to player
     -- l.x = player.x + 20
     -- l.y = player.y + 20
-    love.graphics.setColor(l.color)
-    love.graphics.circle("fill", l.x, l.y, 10)
-    love.graphics.rectangle("fill", l.switchx, l.switchy, 20, 20)
+    lg.setColor(l.color)
+    lg.circle("fill", l.x, l.y, 10)
+    lg.rectangle("fill", l.switchx, l.switchy, 20, 20)
   end
   -- draw health overlay
-  love.graphics.setColor(1, 0, 0, (100 - player.health) / 200)
-  love.graphics.rectangle("fill", 0, 0, screenWidth, screenHeight)
+  lg.setColor(1, 0, 0, (100 - player.health) / 200)
+  lg.rectangle("fill", 0, 0, screenWidth, screenHeight)
   -- draw light switch overlay
   if nearSwitch then
-    love.graphics.setColor(1, 1, 1)
-    love.graphics.rectangle("fill", (screenWidth - 200) / 2, screenHeight - 150, 200, 100)
-    love.graphics.setColor(0, 0, 0)
-    love.graphics.printf("Press E to Switch", (screenWidth - 200) / 2, screenHeight - 150, 200, "center")
+    lg.setColor(1, 1, 1)
+    lg.rectangle("fill", (screenWidth - 200) / 2, screenHeight - 150, 200, 100)
+    lg.setColor(0, 0, 0)
+    lg.printf("Press E to Switch", (screenWidth - 200) / 2, screenHeight - 150, 200, "center")
   end
 end
 
