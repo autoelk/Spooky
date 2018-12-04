@@ -1,4 +1,5 @@
 require "conf"
+require "light"
 HC = require "HC" -- this is a library that I did not create
 
 function love.load()
@@ -26,7 +27,7 @@ function love.load()
   --place lights
   lights = {}
   for i = 1, 2 do
-    lightCreate()
+    table.insert(lights, Light:Create())
   end
   --place crates
   crates = {}
@@ -49,7 +50,7 @@ function love.load()
     dir = 0,
     speed = 200,
     health = 100,
-    sprite = lg.newImage("Assets/player.png")
+    spr = lg.newImage("Assets/player.png")
   }
   player.col = HC.rectangle(player.x, player.y, player.w, player.h)
   --preload shadow collisions
@@ -57,13 +58,16 @@ function love.load()
     for j, c in ipairs(crates) do
       c.shadow = {}
       c.shadow[i] = HC.polygon(offsetsToPolygon(l, c))
-      c.shadow[i].on = l.on
+      c.shadow[i].on = l.switch.on
       c.shadow[i].type = "shadow"
     end
   end
 end
 
 function love.update(dt)
+  if lk.isDown("escape") or ((lk.isDown("lctrl") or lk.isDown("rctrl")) and lk.isDown("w")) then
+    love.event.quit()
+  end
   --movement
   player.vx, player.vy = 0, 0
   if lk.isDown("up") or lk.isDown("w") then
@@ -81,9 +85,6 @@ function love.update(dt)
   if lk.isDown("left") or lk.isDown("a") then
     player.vx = -player.speed * dt
     player.dir = 3
-  end
-  if lk.isDown("escape") then
-    love.event.quit()
   end
   --apply movement
   player.x = player.x + player.vx
@@ -105,9 +106,9 @@ function love.update(dt)
     player.y = screenHeight - 45
   end
   --check for and resolve collisions
-  nearSwitch = nil;
+  curSwitch = nil;
   for shape, delta in pairs(HC.collisions(player.col)) do
-    print(shape.type)
+    -- print(shape.type)
     if shape.type == "crate" then
       -- print(delta.x .. ", " .. delta.y)
       player.col:move(delta.x, delta.y)
@@ -117,7 +118,7 @@ function love.update(dt)
       player.health = player.health - 200 * dt --deal damage to the player
     end
     if shape.type == "switch" then
-      nearSwitch = shape;
+      curSwitch = shape;
     end
   end
   --heal player
@@ -128,12 +129,14 @@ function love.update(dt)
   if player.health < 0 then
     player.health = 0
   end
-  --light switches
-  if lk.isDown() then
-    if l.on then
-      l.on = false
-    else
-      l.on = true
+end
+
+function love.keypressed(key, scancode, isrepeat)
+  if key == "e" and curSwitch then
+    if curSwitch.on then
+      curSwitch.on = false
+    elseif not curSwitch.on then
+      curSwitch.on = true
     end
   end
 end
@@ -148,9 +151,9 @@ function love.draw()
   end
   --draw shadow
   for i, l in ipairs(lights) do
-    if l.on then
+    if l.switch.on then
       for j, c in ipairs(crates) do
-        lg.setColor(0, 0, 0)
+        lg.setColor(0, 0, 0, 0.85)
         lg.polygon("fill", offsetsToPolygon(l, c))
         -- lg.setColor(1, 1, 1)
         -- local distance = 200
@@ -171,7 +174,7 @@ function love.draw()
     lg.draw(crate, c.x, c.y)
   end
   -- draw character
-  lg.draw(player.sprite, player.x + 45 / 2, player.y + 45 / 2, player.dir * math.pi / 2, 1, 1, 80 / 2, 45 / 2)
+  lg.draw(player.spr, player.x + 45 / 2, player.y + 45 / 2, player.dir * math.pi / 2, 1, 1, 80 / 2, 45 / 2)
   -- draw lights
   for i, l in ipairs(lights) do
     -- attach light to player
@@ -179,13 +182,13 @@ function love.draw()
     -- l.y = player.y + 20
     lg.setColor(l.color)
     lg.circle("fill", l.x, l.y, 10)
-    lg.rectangle("fill", l.switchx, l.switchy, 20, 20)
+    lg.rectangle("fill", l.switch.x, l.switch.y, 20, 20)
   end
-  -- draw health overlay
-  lg.setColor(1, 0, 0, (100 - player.health) / 200)
-  lg.rectangle("fill", 0, 0, screenWidth, screenHeight)
+  -- draw health bar
+  lg.setColor(1, 0, 0)
+  lg.rectangle("fill", 25, screenHeight - 50, player.health * 2, 25)
   -- draw light switch overlay
-  if nearSwitch then
+  if curSwitch then
     lg.setColor(1, 1, 1)
     lg.rectangle("fill", (screenWidth - 200) / 2, screenHeight - 150, 200, 100)
     lg.setColor(0, 0, 0)
@@ -253,19 +256,4 @@ end
 
 function findSlope(x1, y1, x2, y2)
   return (-y2 + y1) / (x2 - x1)
-end
-
-
-function lightCreate(x, y, switchx, switchy)
-  local light = {
-    x = x or math.random(0, screenWidth),
-    y = y or math.random(0, screenHeight),
-    switchx = switchx or math.random(0, screenWidth),
-    switchy = switchy or math.random(0, screenHeight),
-    color = {math.random(0, 255) / 255, math.random(0, 255) / 255, math.random(0, 255 / 255)},
-    on = true,
-  }
-  table.insert(lights, light)
-  light.switchcol = HC.rectangle(light.switchx, light.switchy, 20, 20)
-  light.switchcol.type = "switch"
 end
