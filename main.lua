@@ -42,9 +42,7 @@ function love.load()
   player.col = HC.rectangle(player.x, player.y, player.w, player.h)
   --load level
   currentLevel = 1
-  levelstart = {}
-  levelend = {}
-  Level:Load(0)
+  Level:Load(currentLevel)
 end
 
 function love.update(dt)
@@ -90,7 +88,9 @@ function love.update(dt)
   end
   --check for and resolve collisions
   curSwitch = nil;
+  onExit = false;
   for shape, delta in pairs(HC.collisions(player.col)) do
+    print(shape.type)
     if shape.type == "crate" then
       player.col:move(delta.x, delta.y)
       player.x = player.x + delta.x
@@ -100,6 +100,9 @@ function love.update(dt)
     end
     if shape.type == "switch" then
       curSwitch = shape;
+    end
+    if shape.type == "exit" then
+      onExit = true;
     end
   end
   --heal player
@@ -113,17 +116,24 @@ function love.update(dt)
 end
 
 function love.keypressed(key, scancode, isrepeat)
-  if key == "e" and curSwitch then
-    if curSwitch.on then
-      curSwitch.on = false
-    elseif not curSwitch.on then
-      curSwitch.on = true
-    end
-    --update shadow status
-    for i, c in ipairs(crates) do
-      for j, l in ipairs(lights) do
-        l.shadow[i].on = l.switch.on
+  if key == "e"then
+    if curSwitch then
+      if curSwitch.on then
+        curSwitch.on = false
+      elseif not curSwitch.on then
+        curSwitch.on = true
       end
+      --update shadow status
+      for i, c in ipairs(crates) do
+        for j, l in ipairs(lights) do
+          l.shadow[i].on = l.switch.on
+        end
+      end
+    end
+    if onExit then
+      currentLevel = currentLevel + 1
+      Level:Reset()
+      Level:Load(currentLevel)
     end
   end
 end
@@ -185,13 +195,19 @@ function love.draw()
   -- draw health bar
   lg.setColor(1, 0, 0)
   lg.rectangle("fill", 25, screenHeight - 50, player.health * 2, 25)
-  -- draw light switch overlay
+  -- draw text overlay
   if curSwitch then
-    lg.setColor(1, 1, 1)
-    lg.rectangle("fill", (screenWidth - 200) / 2, screenHeight - 150, 200, 100)
-    lg.setColor(0, 0, 0)
-    lg.printf("Press E to Use", (screenWidth - 200) / 2, screenHeight - 150 + 37, 200, "center")
+    drawText("Press E to Use")
+  elseif onExit then
+    drawText("Press E to Continue")
   end
+end
+
+function drawText(text)
+  lg.setColor(1, 1, 1)
+  lg.rectangle("fill", (screenWidth - 200) / 2, screenHeight - 150, 200, 100)
+  lg.setColor(0, 0, 0)
+  lg.printf(text, (screenWidth - 200) / 2, screenHeight - 150 + 37, 200, "center")
 end
 
 function offsetsToPolygon(l, c)
