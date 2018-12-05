@@ -1,5 +1,5 @@
 require "conf"
-require "light"
+require "level"
 HC = require "HC" -- this is a library that I did not create
 
 function love.load()
@@ -9,6 +9,8 @@ function love.load()
   screenHeight = lg.getHeight()
   screenWidth = lg.getWidth()
   --load in textures
+  font = love.graphics.newFont("Assets/Roboto-Regular.ttf", 20)
+  love.graphics.setFont(font)
   crate = lg.newImage("Assets/crate.png")
   concrete = {}
   for i = 1, 6 do
@@ -24,22 +26,7 @@ function love.load()
       floor[i][j].rotation = math.random(1, 4) * math.pi / 2
     end
   end
-  --place lights
-  lights = {}
-  for i = 1, 2 do
-    table.insert(lights, Light:Create())
-  end
-  --place crates
-  crates = {}
-  for i = 1, 10 do
-    local box = {
-      x = 80 * math.random(0, math.floor(screenWidth / 80)),
-      y = 80 * math.random(0, math.floor(screenHeight / 80)),
-    }
-    box.col = HC.rectangle(box.x, box.y, 80, 80)
-    box.col.type = "crate"
-    table.insert(crates, box)
-  end
+  --player
   player = {
     x = 500,
     y = 500,
@@ -53,15 +40,11 @@ function love.load()
     spr = lg.newImage("Assets/player.png")
   }
   player.col = HC.rectangle(player.x, player.y, player.w, player.h)
-  --preload shadow collisions
-  for i, l in ipairs(lights) do
-    for j, c in ipairs(crates) do
-      c.shadow = {}
-      c.shadow[i] = HC.polygon(offsetsToPolygon(l, c))
-      c.shadow[i].on = l.switch.on
-      c.shadow[i].type = "shadow"
-    end
-  end
+  --load level
+  currentLevel = 1
+  levelstart = {}
+  levelend = {}
+  Level:Load(0)
 end
 
 function love.update(dt)
@@ -108,9 +91,7 @@ function love.update(dt)
   --check for and resolve collisions
   curSwitch = nil;
   for shape, delta in pairs(HC.collisions(player.col)) do
-    -- print(shape.type)
     if shape.type == "crate" then
-      -- print(delta.x .. ", " .. delta.y)
       player.col:move(delta.x, delta.y)
       player.x = player.x + delta.x
       player.y = player.y + delta.y
@@ -137,6 +118,12 @@ function love.keypressed(key, scancode, isrepeat)
       curSwitch.on = false
     elseif not curSwitch.on then
       curSwitch.on = true
+    end
+    --update shadow status
+    for i, c in ipairs(crates) do
+      for j, l in ipairs(lights) do
+        l.shadow[i].on = l.switch.on
+      end
     end
   end
 end
@@ -173,7 +160,13 @@ function love.draw()
   for i, c in ipairs(crates) do
     lg.draw(crate, c.x, c.y)
   end
+  -- draw start and end
+  lg.setColor(0, 1, 0)
+  lg.rectangle("fill", levelstart.x, levelstart.y, levelstart.w, levelstart.h)
+  lg.setColor(1, 0, 0)
+  lg.rectangle("fill", levelend.x, levelend.y, levelend.w, levelend.h)
   -- draw character
+  lg.setColor(1, 1, 1)
   lg.draw(player.spr, player.x + 45 / 2, player.y + 45 / 2, player.dir * math.pi / 2, 1, 1, 80 / 2, 45 / 2)
   -- draw lights
   for i, l in ipairs(lights) do
@@ -181,8 +174,13 @@ function love.draw()
     -- l.x = player.x + 20
     -- l.y = player.y + 20
     lg.setColor(l.color)
-    lg.circle("fill", l.x, l.y, 10)
-    lg.rectangle("fill", l.switch.x, l.switch.y, 20, 20)
+    if l.switch.on then
+      lg.circle("fill", l.x, l.y, 10)
+      lg.rectangle("fill", l.switch.x, l.switch.y, 20, 20)
+    else
+      lg.circle("line", l.x, l.y, 10)
+      lg.rectangle("line", l.switch.x, l.switch.y, 20, 20)
+    end
   end
   -- draw health bar
   lg.setColor(1, 0, 0)
@@ -192,7 +190,7 @@ function love.draw()
     lg.setColor(1, 1, 1)
     lg.rectangle("fill", (screenWidth - 200) / 2, screenHeight - 150, 200, 100)
     lg.setColor(0, 0, 0)
-    lg.printf("Press E to Switch", (screenWidth - 200) / 2, screenHeight - 150, 200, "center")
+    lg.printf("Press E to Use", (screenWidth - 200) / 2, screenHeight - 150 + 37, 200, "center")
   end
 end
 
