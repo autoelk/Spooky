@@ -1,6 +1,6 @@
 require "conf"
 require "level"
-HC = require "HC" -- this is a library that I did not create
+HC = require "HC" --this is a library that I did not create
 
 function love.load()
   math.randomseed(os.time())
@@ -9,8 +9,8 @@ function love.load()
   screenHeight = lg.getHeight()
   screenWidth = lg.getWidth()
   --load in textures
-  font = love.graphics.newFont("Assets/Roboto-Regular.ttf", 20)
-  love.graphics.setFont(font)
+  font = lg.newFont("Assets/Roboto-Regular.ttf", 20) --I did not create this font
+  lg.setFont(font)
   crate = lg.newImage("Assets/crate.png")
   concrete = {}
   for i = 1, 6 do
@@ -87,22 +87,27 @@ function love.update(dt)
     player.y = screenHeight - 45
   end
   --check for and resolve collisions
-  curSwitch = nil;
-  onExit = false;
+  curSwitch = nil
+  onStart = false
+  onEnd = false
+  takingDamage = false
   for shape, delta in pairs(HC.collisions(player.col)) do
-    print(shape.type)
     if shape.type == "crate" then
       player.col:move(delta.x, delta.y)
       player.x = player.x + delta.x
       player.y = player.y + delta.y
     elseif shape.type == "shadow" and shape.on then
-      player.health = player.health - 200 * dt --deal damage to the player
+      player.health = player.health - 400 * dt --deal damage to the player
+      takingDamage = true
     end
     if shape.type == "switch" then
-      curSwitch = shape;
+      curSwitch = shape
+    end
+    if shape.type == "start" then
+      onStart = true
     end
     if shape.type == "exit" then
-      onExit = true;
+      onEnd = true
     end
   end
   --heal player
@@ -116,6 +121,7 @@ function love.update(dt)
 end
 
 function love.keypressed(key, scancode, isrepeat)
+  --interaction with "e"
   if key == "e"then
     if curSwitch then
       if curSwitch.on then
@@ -124,16 +130,25 @@ function love.keypressed(key, scancode, isrepeat)
         curSwitch.on = true
       end
       --update shadow status
-      for i, c in ipairs(crates) do
-        for j, l in ipairs(lights) do
-          l.shadow[i].on = l.switch.on
+      for i, l in pairs(lights) do
+        for j, c in pairs(crates) do
+          l.shadow[j].on = l.switch.on
         end
       end
     end
-    if onExit then
-      currentLevel = currentLevel + 1
-      Level:Reset()
-      Level:Load(currentLevel)
+    if onStart then
+      if currentLevel > 1 then
+        currentLevel = currentLevel - 1
+        Level:Reset()
+        Level:Load(currentLevel)
+      end
+    end
+    if onEnd then
+      if currentLevel < #levels then
+        currentLevel = currentLevel + 1
+        Level:Reset()
+        Level:Load(currentLevel)
+      end
     end
   end
 end
@@ -146,11 +161,23 @@ function love.draw()
       lg.draw(floor[i][j].tile, i * 30 - 30 / 2, j * 30 - 30 / 2, floor[i][j].rotation, 1, 1, 30 / 2, 30 / 2)
     end
   end
+  -- draw start and end
+  lg.setColor(0, 1, 0)
+  lg.rectangle("fill", levelstart.x, levelstart.y, levelstart.w, levelstart.h)
+  lg.setColor(0, 0, 0)
+  lg.printf("START", levelstart.x, levelstart.y + 40 - 13, levelstart.w, "center")
+  lg.setColor(1, 0, 0)
+  lg.rectangle("fill", levelend.x, levelend.y, levelend.w, levelend.h)
+  lg.setColor(0, 0, 0)
+  lg.printf("END", levelend.x, levelend.y + 40 - 13, levelend.w, "center")
+  -- draw character
+  lg.setColor(1, 1, 1)
+  lg.draw(player.spr, player.x + 45 / 2, player.y + 45 / 2, player.dir * math.pi / 2, 1, 1, 80 / 2, 45 / 2)
   --draw shadow
-  for i, l in ipairs(lights) do
+  for i, l in pairs(lights) do
     if l.switch.on then
-      for j, c in ipairs(crates) do
-        lg.setColor(0, 0, 0, 0.85)
+      for j, c in pairs(crates) do
+        lg.setColor(0, 0, 0, 0.75)
         lg.polygon("fill", offsetsToPolygon(l, c))
         -- lg.setColor(1, 1, 1)
         -- local distance = 200
@@ -167,19 +194,11 @@ function love.draw()
   end
   lg.setColor(1, 1, 1) -- reset colors
   -- draw crates
-  for i, c in ipairs(crates) do
+  for i, c in pairs(crates) do
     lg.draw(crate, c.x, c.y)
   end
-  -- draw start and end
-  lg.setColor(0, 1, 0)
-  lg.rectangle("fill", levelstart.x, levelstart.y, levelstart.w, levelstart.h)
-  lg.setColor(1, 0, 0)
-  lg.rectangle("fill", levelend.x, levelend.y, levelend.w, levelend.h)
-  -- draw character
-  lg.setColor(1, 1, 1)
-  lg.draw(player.spr, player.x + 45 / 2, player.y + 45 / 2, player.dir * math.pi / 2, 1, 1, 80 / 2, 45 / 2)
   -- draw lights
-  for i, l in ipairs(lights) do
+  for i, l in pairs(lights) do
     -- attach light to player
     -- l.x = player.x + 20
     -- l.y = player.y + 20
@@ -192,18 +211,34 @@ function love.draw()
       lg.rectangle("line", l.switch.x, l.switch.y, 20, 20)
     end
   end
+  --draw level design grid
+  lg.setColor(1, 1, 1)
+  for i = 1, screenWidth / 80 do
+    for j = 1, screenHeight / 80 do
+      lg.line(80 * i, 0, 80 * i, screenHeight)
+      lg.line(0, 80 * i, screenWidth, 80 * i)
+    end
+  end
   -- draw health bar
   lg.setColor(1, 0, 0)
   lg.rectangle("fill", 25, screenHeight - 50, player.health * 2, 25)
+  lg.printf(math.floor(player.health), player.health * 2 + 25 + 10, screenHeight - 50, 100)
+  -- draw taking damage overlay
+  if takingDamage then
+    lg.setColor(1, 0, 0, 0.25)
+    lg.rectangle("fill", 0, 0, screenWidth, screenHeight)
+  end
   -- draw text overlay
   if curSwitch then
-    drawText("Press E to Use")
-  elseif onExit then
-    drawText("Press E to Continue")
+    tooltip("Press E to Use")
+  elseif onStart then
+    tooltip("Press E to Go Back")
+  elseif onEnd then
+    tooltip("Press E to Continue")
   end
 end
 
-function drawText(text)
+function tooltip(text)
   lg.setColor(1, 1, 1)
   lg.rectangle("fill", (screenWidth - 200) / 2, screenHeight - 150, 200, 100)
   lg.setColor(0, 0, 0)

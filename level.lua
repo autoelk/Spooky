@@ -2,16 +2,28 @@ Level = {}
 levels = {
   {
     {"start", 0, 0},
-    {"end", 100, 100},
-    {"crate", 500, 600},
-    {"light", 300, 400, 400, 300, true},
+    {"end", 6, 0},
+    {"crate", 3, 6},
+    {"crate", 1, 4},
+    {"crate", 2, 6},
+    {"crate", 3, 2},
+    {"crate", 4, 6},
+    {"light", 3, 4, - 1, - 1, true},
   },
   {
     {"start", 0, 0},
-    {"end", 600, 100},
-    {"crate", 500, 300},
-    {"light", 150, 350, 300, 400, true},
-  }
+    {"end", 9, 4},
+    {"crate", 5, 4},
+    {"light", 3, 4, 6, 2, true},
+  },
+  {
+    {"start", 0, 0},
+    {"end", 9, 4},
+    {"crate", 5, 4},
+    {"crate", 5, 1},
+    {"light", 3, 4, 6, 2, true},
+    {"light", 3, 0, 2, 1, true},
+  },
 }
 
 function Level:Load(num)
@@ -27,19 +39,19 @@ function Level:Load(num)
       table.insert(crates, Level:CreateCrate())
     end
     --create lights
-    for i = 1, 3 do
+    for i = 1, 2 do
       table.insert(lights, Level:CreateLight())
     end
   else
     for i, object in pairs(levels[num]) do
       if object[1] == "start" then
-        levelstart = Level:CreateStart(object[2], object[3])
+        levelstart = Level:CreateStart(object[2] * 80, object[3] * 80)
       elseif object[1] == "crate" then
-        table.insert(crates, Level:CreateCrate(object[2], object[3]))
+        table.insert(crates, Level:CreateCrate(object[2] * 80, object[3] * 80))
       elseif object[1] == "light" then
-        table.insert(lights, Level:CreateLight(object[2], object[3], object[4], object[5]))
+        table.insert(lights, Level:CreateLight(object[2] * 80 + 40, object[3] * 80 + 40, object[4] * 80 + 40 - 10, object[5] * 80 + 40 - 10, object[6]))
       elseif object[1] == "end" then
-        levelend = Level:CreateEnd(object[2], object[3])
+        levelend = Level:CreateEnd(object[2] * 80, object[3] * 80)
       end
     end
   end
@@ -50,26 +62,27 @@ end
 
 function Level:Reset()
   for i, l in pairs(lights) do
-    HC.remove(l.switch)
-    table.remove(lights, i)
     for j, c in pairs(crates) do
       HC.remove(l.shadow[j])
-      table.remove(l.shadow, j)
+      l.shadow[j] = nil
     end
+  end
+  for i, l in pairs(lights) do
+    HC.remove(l.switch)
+    lights[i] = nil
   end
   for i, c in pairs(crates) do
     HC.remove(c.col)
-    table.remove(crates, i)
+    crates[i] = nil
   end
-  if levelend.col then
-    HC.remove(levelend.col)
-  end
+  HC.remove(levelstart.col)
+  HC.remove(levelend.col)
 end
 
 function Level:CreateCrate (x, y)
   local box = {
-    x = x or 80 * math.random(0, math.floor(screenWidth / 80)),
-    y = y or 80 * math.random(0, math.floor(screenHeight / 80)),
+    x = x or 80 * math.random(0, screenWidth),
+    y = y or 80 * math.random(0, screenHeight),
   }
   box.col = HC.rectangle(box.x, box.y, 80, 80)
   box.col.type = "crate"
@@ -84,7 +97,7 @@ function Level:CreateLight (x, y, switchx, switchy, on)
   }
   light.switch = Level:CreateSwitch(switchx, switchy, on)
   light.shadow = {}
-  for i, c in ipairs(crates) do
+  for i, c in pairs(crates) do
     light.shadow[i] = HC.polygon(offsetsToPolygon(light, c))
     light.shadow[i].type = "shadow"
     light.shadow[i].on = light.switch.on
@@ -109,9 +122,11 @@ function Level:CreateStart(x, y)
   local start = {
     x = x or math.random(0, screenWidth),
     y = y or math.random(0, screenHeight),
-    w = 64,
-    h = 64,
+    w = 80,
+    h = 80,
   }
+  start.col = HC.rectangle(start.x, start.y, start.w, start.h)
+  start.col.type = "start"
   return start
 end
 
@@ -119,8 +134,8 @@ function Level:CreateEnd(x, y)
   local exit = {
     x = x or math.random(0, screenWidth),
     y = y or math.random(0, screenHeight),
-    w = 64,
-    h = 64,
+    w = 80,
+    h = 80,
   }
   exit.col = HC.rectangle(exit.x, exit.y, exit.w, exit.h)
   exit.col.type = "exit"
