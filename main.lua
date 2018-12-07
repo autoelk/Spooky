@@ -8,9 +8,10 @@ function love.load()
   lk = love.keyboard
   screenHeight = lg.getHeight()
   screenWidth = lg.getWidth()
+  won = false
   --load in textures
-  font = lg.newFont("Assets/Roboto-Regular.ttf", 20) --I did not create this font
-  lg.setFont(font)
+  LFont = lg.newFont("Assets/Roboto-Regular.ttf", 96) --I did not create this font
+  MFont = lg.newFont("Assets/Roboto-Regular.ttf", 20) --I did not create this font
   crate = lg.newImage("Assets/crate.png")
   concrete = {}
   for i = 1, 6 do
@@ -68,9 +69,11 @@ function love.update(dt)
     player.dir = 3
   end
   --apply movement
-  player.x = player.x + player.vx
-  player.y = player.y + player.vy
-  player.col:move(player.vx, player.vy)
+  if player.health > 0 then
+    player.x = player.x + player.vx
+    player.y = player.y + player.vy
+    player.col:move(player.vx, player.vy)
+  end
   --boundries
   if player.x < 0 then
     player.col:move(- player.x, 0)
@@ -110,8 +113,20 @@ function love.update(dt)
       onEnd = true
     end
   end
+  --update shadows
+  for i, l in pairs(lights) do
+    for j, c in pairs(crates) do
+      HC.remove(l.shadow[j])
+      l.shadow[j] = nil
+      l.shadow[j] = HC.polygon(offsetsToPolygon(l, c))
+      l.shadow[j].type = "shadow"
+      l.shadow[j].on = l.switch.on
+    end
+  end
   --heal player
-  player.health = player.health + 100 * dt
+  if player.health > 0 then
+    player.health = player.health + 100 * dt
+  end
   if player.health > 100 then
     player.health = 100
   end
@@ -123,6 +138,11 @@ end
 function love.keypressed(key, scancode, isrepeat)
   --interaction with "e"
   if key == "e"then
+    if player.health == 0 then
+      player.health = 100
+      Level:Reset()
+      Level:Load(currentLevel)
+    end
     if curSwitch then
       if curSwitch.on then
         curSwitch.on = false
@@ -143,11 +163,20 @@ function love.keypressed(key, scancode, isrepeat)
         Level:Load(currentLevel)
       end
     end
-    if onEnd then
-      if currentLevel < #levels then
-        currentLevel = currentLevel + 1
+    if won then
+      won = false
+      player.health = 100
+      currentLevel = 1
+      Level:Reset()
+      Level:Load(currentLevel)
+    elseif onEnd then
+      currentLevel = currentLevel + 1
+      if currentLevel <= #levels then
         Level:Reset()
         Level:Load(currentLevel)
+      end
+      if currentLevel > #levels then
+        won = true
       end
     end
   end
@@ -162,14 +191,16 @@ function love.draw()
     end
   end
   -- draw start and end
-  lg.setColor(0, 1, 0)
-  lg.rectangle("fill", levelstart.x, levelstart.y, levelstart.w, levelstart.h)
-  lg.setColor(0, 0, 0)
-  lg.printf("START", levelstart.x, levelstart.y + 40 - 13, levelstart.w, "center")
-  lg.setColor(1, 0, 0)
-  lg.rectangle("fill", levelend.x, levelend.y, levelend.w, levelend.h)
-  lg.setColor(0, 0, 0)
-  lg.printf("END", levelend.x, levelend.y + 40 - 13, levelend.w, "center")
+  if levelstart and levelend then
+    lg.setColor(0, 1, 0)
+    lg.rectangle("fill", levelstart.x, levelstart.y, levelstart.w, levelstart.h)
+    lg.setColor(1, 0, 0)
+    lg.rectangle("fill", levelend.x, levelend.y, levelend.w, levelend.h)
+    lg.setColor(0, 0, 0)
+    lg.setFont(MFont)
+    lg.printf("START", levelstart.x, levelstart.y + 40 - 13, levelstart.w, "center")
+    lg.printf("END", levelend.x, levelend.y + 40 - 13, levelend.w, "center")
+  end
   -- draw character
   lg.setColor(1, 1, 1)
   lg.draw(player.spr, player.x + 45 / 2, player.y + 45 / 2, player.dir * math.pi / 2, 1, 1, 80 / 2, 45 / 2)
@@ -177,31 +208,19 @@ function love.draw()
   for i, l in pairs(lights) do
     if l.switch.on then
       for j, c in pairs(crates) do
-        lg.setColor(0, 0, 0, 0.75)
+        lg.setColor(0, 0, 0, 0.5)
+        -- lg.polygon("fill", l.shadow[j]:unpack())
         lg.polygon("fill", offsetsToPolygon(l, c))
-        -- lg.setColor(1, 1, 1)
-        -- local distance = 200
-        -- -- draw lines from light to corners
-        -- lg.line(l.x, l.y, c.x + 80 + distance * (c.x + 80 - l.x), c.y + 80 + distance * (c.y + 80 - l.y))
-        -- lg.line(l.x, l.y, c.x + 80 + distance * (c.x + 80 - l.x), c.y + distance * (c.y - l.y))
-        -- lg.line(l.x, l.y, c.x + distance * (c.x - l.x), c.y + 80 + distance * (c.y + 80 - l.y))
-        -- lg.line(l.x, l.y, c.x + distance * (c.x - l.x), c.y + distance * (c.y - l.y))
-        -- -- draw circles on selected corners
-        -- lg.circle("fill", c.x + topX, c.y + topY, 5)
-        -- lg.circle("fill", c.x + botX, c.y + botY, 5)
       end
     end
   end
-  lg.setColor(1, 1, 1) -- reset colors
+  lg.setColor(1, 1, 1)
   -- draw crates
   for i, c in pairs(crates) do
     lg.draw(crate, c.x, c.y)
   end
   -- draw lights
   for i, l in pairs(lights) do
-    -- attach light to player
-    -- l.x = player.x + 20
-    -- l.y = player.y + 20
     lg.setColor(l.color)
     if l.switch.on then
       lg.circle("fill", l.x, l.y, 10)
@@ -212,13 +231,13 @@ function love.draw()
     end
   end
   --draw level design grid
-  lg.setColor(1, 1, 1)
-  for i = 1, screenWidth / 80 do
-    for j = 1, screenHeight / 80 do
-      lg.line(80 * i, 0, 80 * i, screenHeight)
-      lg.line(0, 80 * i, screenWidth, 80 * i)
-    end
-  end
+  -- lg.setColor(1, 1, 1)
+  -- for i = 1, screenWidth / 80 do
+  --   for j = 1, screenHeight / 80 do
+  --     lg.line(80 * i, 0, 80 * i, screenHeight)
+  --     lg.line(0, 80 * i, screenWidth, 80 * i)
+  --   end
+  -- end
   -- draw health bar
   lg.setColor(1, 0, 0)
   lg.rectangle("fill", 25, screenHeight - 50, player.health * 2, 25)
@@ -231,10 +250,21 @@ function love.draw()
   -- draw text overlay
   if curSwitch then
     tooltip("Press E to Use")
-  elseif onStart then
+  elseif onStart and currentLevel ~= 1 then
     tooltip("Press E to Go Back")
   elseif onEnd then
-    tooltip("Press E to Continue")
+    if currentLevel == #levels then
+      tooltip("Press E to Win")
+    else
+      tooltip("Press E to Continue")
+    end
+  end
+  --draw menu overlay
+  if player.health == 0 then
+    menu("YOU DIED", "Press E to Restart")
+  end
+  if won then
+    menu("YOU WON!", "Press E to Restart")
   end
 end
 
@@ -242,14 +272,26 @@ function tooltip(text)
   lg.setColor(1, 1, 1)
   lg.rectangle("fill", (screenWidth - 200) / 2, screenHeight - 150, 200, 100)
   lg.setColor(0, 0, 0)
+  lg.setFont(MFont)
   lg.printf(text, (screenWidth - 200) / 2, screenHeight - 150 + 37, 200, "center")
+end
+
+function menu(title, option)
+  lg.setColor(1, 1, 1)
+  lg.rectangle("fill", 50, 50, screenWidth - 50 * 2, screenHeight / 2 - 50)
+  lg.rectangle("fill", (screenWidth - 200) / 2, screenHeight - 150, 200, 100)
+  lg.setColor(0, 0, 0)
+  lg.setFont(LFont)
+  lg.printf(title, 50, 50 + (screenHeight / 2 - 50) / 2 - 55, screenWidth - 50 * 2, "center")
+  lg.setFont(MFont)
+  lg.printf(option, (screenWidth - 200) / 2, screenHeight - 150 + 37, 200, "center")
 end
 
 function offsetsToPolygon(l, c)
   local top, bot = selectCorners(l, c)
   local topX, topY = cornerNumToOffset(top)
   local botX, botY = cornerNumToOffset(bot)
-  local distance = 200
+  local distance = 20
   return c.x + botX,
   c.y + botY,
   c.x + topX,

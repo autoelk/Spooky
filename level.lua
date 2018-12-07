@@ -13,6 +13,7 @@ levels = {
   {
     {"start", 0, 0},
     {"end", 9, 4},
+    {"crate", 3, 2},
     {"crate", 5, 4},
     {"light", 3, 4, 6, 2, true},
   },
@@ -22,7 +23,7 @@ levels = {
     {"crate", 5, 4},
     {"crate", 5, 1},
     {"light", 3, 4, 6, 2, true},
-    {"light", 3, 0, 2, 1, true},
+    {"light", 3, 0, 2, 6, true},
   },
 }
 
@@ -76,13 +77,15 @@ function Level:Reset()
     crates[i] = nil
   end
   HC.remove(levelstart.col)
+  levelstart = nil
   HC.remove(levelend.col)
+  levelend = nil
 end
 
 function Level:CreateCrate (x, y)
   local box = {
-    x = x or 80 * math.random(0, screenWidth),
-    y = y or 80 * math.random(0, screenHeight),
+    x = x or 80 * math.floor(math.random(0, screenWidth / 80)),
+    y = y or 80 * math.floor(math.random(0, screenHeight / 80)),
   }
   box.col = HC.rectangle(box.x, box.y, 80, 80)
   box.col.type = "crate"
@@ -91,8 +94,8 @@ end
 
 function Level:CreateLight (x, y, switchx, switchy, on)
   local light = {
-    x = x or math.random(0, screenWidth),
-    y = y or math.random(0, screenHeight),
+    x = x or 80 * math.floor(math.random(0, screenWidth / 80)) + 40,
+    y = y or 80 * math.floor(math.random(0, screenHeight / 80)) + 40,
     color = {math.random(0, 255) / 255, math.random(0, 255) / 255, math.random(0, 255 / 255)},
   }
   light.switch = Level:CreateSwitch(switchx, switchy, on)
@@ -107,8 +110,8 @@ end
 
 function Level:CreateSwitch(x, y, on)
   local temp = {
-    x = x or math.random(0, screenWidth),
-    y = y or math.random(0, screenHeight),
+    x = x or 80 * math.floor(math.random(0, screenWidth / 80)) + 40 - 10,
+    y = y or 80 * math.floor(math.random(0, screenHeight / 80)) + 40 - 10,
   }
   local switch = HC.rectangle(temp.x, temp.y, 20, 20)
   switch.type = "switch"
@@ -120,8 +123,8 @@ end
 
 function Level:CreateStart(x, y)
   local start = {
-    x = x or math.random(0, screenWidth),
-    y = y or math.random(0, screenHeight),
+    x = x or 80 * math.floor(math.random(0, screenWidth / 80)),
+    y = y or 80 * math.floor(math.random(0, screenHeight / 80)),
     w = 80,
     h = 80,
   }
@@ -132,8 +135,8 @@ end
 
 function Level:CreateEnd(x, y)
   local exit = {
-    x = x or math.random(0, screenWidth),
-    y = y or math.random(0, screenHeight),
+    x = x or 80 * math.floor(math.random(0, screenWidth / 80)),
+    y = y or 80 * math.floor(math.random(0, screenHeight / 80)),
     w = 80,
     h = 80,
   }
