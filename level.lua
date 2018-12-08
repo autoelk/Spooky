@@ -3,27 +3,78 @@ levels = {
   {
     {"start", 0, 0},
     {"end", 6, 0},
+    {"crate", 1, 5},
+    {"crate", 2, 6},
+    {"crate", 2, 2},
+    {"crate", 3, 2},
     {"crate", 3, 6},
-    {"crate", 1, 4},
+    {"crate", 4, 6},
+    {"crate", 5, 5},
+    {"crate", 6, 4},
+    {"light", true, - 1, - 1, 2, 4},
+  },
+  {
+    {"start", 0, 0},
+    {"end", 7, 6},
+    {"crate", 3, 5},
+    {"crate", 4, 2},
+    {"crate", 4, 6},
+    {"crate", 4, 7},
+    {"crate", 5, 3},
+    {"crate", 6, 2},
+    {"crate", 7, 5},
+    {"light", true, - 1, - 1, 1, 2},
+  },
+  {
+    {"start", 0, 0},
+    {"end", 9, 4},
     {"crate", 2, 6},
     {"crate", 3, 2},
-    {"crate", 4, 6},
-    {"light", 3, 4, - 1, - 1, true},
+    {"crate", 5, 4},
+    {"light", true, 6, 2, 3, 4},
+  },
+  {
+    {"start", 0, 0},
+    {"end", 0, 6},
+    {"crate", 1, 4},
+    {"crate", 2, 0},
+    {"crate", 2, 6},
+    {"crate", 3, 3},
+    {"crate", 4, 5},
+    {"crate", 6, 1},
+    {"crate", 7, 2},
+    {"crate", 7, 4},
+    {"crate", 7, 6},
+    {"light", true, 7, 5, 5, 3},
   },
   {
     {"start", 0, 0},
     {"end", 9, 4},
-    {"crate", 3, 2},
-    {"crate", 5, 4},
-    {"light", 3, 4, 6, 2, true},
-  },
-  {
-    {"start", 0, 0},
-    {"end", 9, 4},
-    {"crate", 5, 4},
     {"crate", 5, 1},
-    {"light", 3, 4, 6, 2, true},
-    {"light", 3, 0, 2, 6, true},
+    {"crate", 5, 4},
+    {"light", true, 6, 2, 3, 4},
+    {"light", true, 2, 6, 3, 0},
+  },
+  {
+    {"start", 5, 4},
+    {"end", 9, 2},
+    {"crate", 3, 1},
+    {"crate", 4, 3},
+    {"crate", 8, 3},
+    {"light", true, 2, 0, 0, 4},
+    {"light", true, 3, 6, 7, 1},
+  },
+  {
+    {"start", 0, 3},
+    {"end", 9, 3},
+    {"crate", 5, 1},
+    {"crate", 5, 2},
+    {"crate", 5, 3},
+    {"crate", 5, 4},
+    {"crate", 5, 5},
+    {"light", true, 1, 1, 10, - 5},
+    {"light", true, 2, 2, 7, 8},
+    {"light", true, 3, 3, - 1, - 1},
   },
 }
 
@@ -32,15 +83,17 @@ function Level:Load(num)
   lights = {}
   levelstart = {}
   levelend = {}
-  if num == 0 then
+  if levels[num][1][1] == "random" or num == 0 then
     levelstart = Level:CreateStart()
     levelend = Level:CreateEnd()
+    local amtCrates = levels[num][1][2] or math.random(2, 5)
+    local amtLights = levels[num][1][3] or math.random(1, 3)
     --create crates
-    for i = 1, 5 do
+    for i = 1, amtCrates do
       table.insert(crates, Level:CreateCrate())
     end
     --create lights
-    for i = 1, 2 do
+    for i = 1, amtLights do
       table.insert(lights, Level:CreateLight())
     end
   else
@@ -50,15 +103,16 @@ function Level:Load(num)
       elseif object[1] == "crate" then
         table.insert(crates, Level:CreateCrate(object[2] * 80, object[3] * 80))
       elseif object[1] == "light" then
-        table.insert(lights, Level:CreateLight(object[2] * 80 + 40, object[3] * 80 + 40, object[4] * 80 + 40 - 10, object[5] * 80 + 40 - 10, object[6]))
+        table.insert(lights, Level:CreateLight(object[2], object[3] * 80 + 40 - 10, object[4] * 80 + 40 - 10, object[5] * 80 + 40, object[6] * 80 + 40))
       elseif object[1] == "end" then
         levelend = Level:CreateEnd(object[2] * 80, object[3] * 80)
       end
     end
   end
-  player.x = levelstart.x
-  player.y = levelstart.y
-  player.col:moveTo(levelstart.x + 45 / 2, levelstart.y + 45 / 2)
+  player.x = levelstart.x + (80 - 45) / 2
+  player.y = levelstart.y + (80 - 45) / 2
+  player.dir = 2
+  player.col:moveTo(levelstart.x + 40, levelstart.y + 40)
 end
 
 function Level:Reset()
@@ -92,12 +146,13 @@ function Level:CreateCrate (x, y)
   return box
 end
 
-function Level:CreateLight (x, y, switchx, switchy, on)
+function Level:CreateLight (on, switchx, switchy, x, y)
   local light = {
     x = x or 80 * math.floor(math.random(0, screenWidth / 80)) + 40,
     y = y or 80 * math.floor(math.random(0, screenHeight / 80)) + 40,
     color = {math.random(0, 255) / 255, math.random(0, 255) / 255, math.random(0, 255 / 255)},
   }
+
   light.switch = Level:CreateSwitch(switchx, switchy, on)
   light.shadow = {}
   for i, c in pairs(crates) do

@@ -138,12 +138,26 @@ end
 function love.keypressed(key, scancode, isrepeat)
   --interaction with "e"
   if key == "e"then
-    if player.health == 0 then
+    if won then
+      won = false
+      player.health = 100
+      currentLevel = 1
+      Level:Reset()
+      Level:Load(currentLevel)
+    elseif player.health == 0 then
       player.health = 100
       Level:Reset()
       Level:Load(currentLevel)
-    end
-    if curSwitch then
+    elseif onEnd then
+      currentLevel = currentLevel + 1
+      if currentLevel <= #levels then
+        Level:Reset()
+        Level:Load(currentLevel)
+      end
+      if currentLevel > #levels then
+        won = true
+      end
+    elseif curSwitch then
       if curSwitch.on then
         curSwitch.on = false
       elseif not curSwitch.on then
@@ -155,28 +169,11 @@ function love.keypressed(key, scancode, isrepeat)
           l.shadow[j].on = l.switch.on
         end
       end
-    end
-    if onStart then
+    elseif onStart then
       if currentLevel > 1 then
         currentLevel = currentLevel - 1
         Level:Reset()
         Level:Load(currentLevel)
-      end
-    end
-    if won then
-      won = false
-      player.health = 100
-      currentLevel = 1
-      Level:Reset()
-      Level:Load(currentLevel)
-    elseif onEnd then
-      currentLevel = currentLevel + 1
-      if currentLevel <= #levels then
-        Level:Reset()
-        Level:Load(currentLevel)
-      end
-      if currentLevel > #levels then
-        won = true
       end
     end
   end
@@ -209,7 +206,6 @@ function love.draw()
     if l.switch.on then
       for j, c in pairs(crates) do
         lg.setColor(0, 0, 0, 0.5)
-        -- lg.polygon("fill", l.shadow[j]:unpack())
         lg.polygon("fill", offsetsToPolygon(l, c))
       end
     end
@@ -291,7 +287,7 @@ function offsetsToPolygon(l, c)
   local top, bot = selectCorners(l, c)
   local topX, topY = cornerNumToOffset(top)
   local botX, botY = cornerNumToOffset(bot)
-  local distance = 20
+  local distance = 1440 / math.sqrt(math.abs((c.x + 40) - l.x) * math.abs((c.x + 40) - l.x) + math.abs((c.y + 40) - l.y) * math.abs((c.y + 40) - l.y))
   return c.x + botX,
   c.y + botY,
   c.x + topX,
