@@ -1,6 +1,5 @@
-require "conf"
 require "level"
-HC = require "HC" --this is a library that I did not create
+HC = require "HC" -- this is a library that I did not create
 
 function love.load()
   math.randomseed(os.time())
@@ -8,16 +7,17 @@ function love.load()
   lk = love.keyboard
   screenHeight = lg.getHeight()
   screenWidth = lg.getWidth()
+  timer = 0
   won = false
-  --load in textures
-  LFont = lg.newFont("Assets/Roboto-Regular.ttf", 96) --I did not create this font
-  MFont = lg.newFont("Assets/Roboto-Regular.ttf", 20) --I did not create this font
+  -- load in textures
+  LFont = lg.newFont("Assets/Roboto-Regular.ttf", 96) -- I did not create this font
+  MFont = lg.newFont("Assets/Roboto-Regular.ttf", 20) -- I did not create this font
   crate = lg.newImage("Assets/crate.png")
   concrete = {}
   for i = 1, 6 do
     concrete[i] = lg.newImage("Assets/concrete" .. i - 1 .. ".png")
   end
-  --generate floor
+  -- generate floor
   floor = {}
   for i = 1, screenWidth / 30 + 1 do
     floor[i] = {}
@@ -27,7 +27,7 @@ function love.load()
       floor[i][j].rotation = math.random(1, 4) * math.pi / 2
     end
   end
-  --player
+  -- player
   player = {
     x = 500,
     y = 500,
@@ -41,7 +41,7 @@ function love.load()
     spr = lg.newImage("Assets/player.png")
   }
   player.col = HC.rectangle(player.x, player.y, player.w, player.h)
-  --load level
+  -- load level
   currentLevel = 1
   Level:Load(currentLevel)
 end
@@ -50,7 +50,7 @@ function love.update(dt)
   if lk.isDown("escape") or ((lk.isDown("lctrl") or lk.isDown("rctrl")) and lk.isDown("w")) then
     love.event.quit()
   end
-  --movement
+  -- movement
   player.vx, player.vy = 0, 0
   if lk.isDown("up") or lk.isDown("w") then
     player.vy = -player.speed * dt
@@ -68,13 +68,13 @@ function love.update(dt)
     player.vx = -player.speed * dt
     player.dir = 3
   end
-  --apply movement
+  -- apply movement
   if player.health > 0 then
     player.x = player.x + player.vx
     player.y = player.y + player.vy
     player.col:move(player.vx, player.vy)
   end
-  --boundries
+  -- boundries
   if player.x < 0 then
     player.col:move(- player.x, 0)
     player.x = 0
@@ -89,7 +89,7 @@ function love.update(dt)
     player.col:move(0, (screenHeight - 45) - player.y)
     player.y = screenHeight - 45
   end
-  --check for and resolve collisions
+  -- check for and resolve collisions
   curSwitch = nil
   onStart = false
   onEnd = false
@@ -100,7 +100,7 @@ function love.update(dt)
       player.x = player.x + delta.x
       player.y = player.y + delta.y
     elseif shape.type == "shadow" and shape.on then
-      player.health = player.health - 400 * dt --deal damage to the player
+      player.health = player.health - 350 * dt -- deal damage to the player
       takingDamage = true
     end
     if shape.type == "switch" then
@@ -113,9 +113,24 @@ function love.update(dt)
       onEnd = true
     end
   end
-  --update shadows
+  timer = timer + dt
   for i, l in pairs(lights) do
+    -- sway lights
+    if timer % 2 < 0.5 then
+      l.x = l.x + (0.5 - (timer % 2)) * 50 * dt
+      l.y = l.y + (0.5 - (timer % 2)) * 50 * dt
+    elseif timer % 2 < 1 then
+      l.x = l.x - ((timer % 2) - 0.5) * 50 * dt
+      l.y = l.y - ((timer % 2) - 0.5) * 50 * dt
+    elseif timer % 2 < 1.5 then
+      l.x = l.x - (0.5 - ((timer % 2) - 1)) * 50 * dt
+      l.y = l.y - (0.5 - ((timer % 2) - 1)) * 50 * dt
+    elseif timer % 2 < 2 then
+      l.x = l.x + ((timer % 2) - 1.5) * 50 * dt
+      l.y = l.y + ((timer % 2) - 1.5) * 50 * dt
+    end
     for j, c in pairs(crates) do
+      -- update shadows
       HC.remove(l.shadow[j])
       l.shadow[j] = nil
       l.shadow[j] = HC.polygon(offsetsToPolygon(l, c))
@@ -123,7 +138,7 @@ function love.update(dt)
       l.shadow[j].on = l.switch.on
     end
   end
-  --heal player
+  -- heal player
   if player.health > 0 then
     player.health = player.health + 100 * dt
   end
@@ -136,7 +151,7 @@ function love.update(dt)
 end
 
 function love.keypressed(key, scancode, isrepeat)
-  --interaction with "e"
+  -- interaction with "e"
   if key == "e"then
     if won then
       won = false
@@ -163,7 +178,7 @@ function love.keypressed(key, scancode, isrepeat)
       elseif not curSwitch.on then
         curSwitch.on = true
       end
-      --update shadow status
+      -- update shadow status
       for i, l in pairs(lights) do
         for j, c in pairs(crates) do
           l.shadow[j].on = l.switch.on
@@ -201,7 +216,7 @@ function love.draw()
   -- draw character
   lg.setColor(1, 1, 1)
   lg.draw(player.spr, player.x + 45 / 2, player.y + 45 / 2, player.dir * math.pi / 2, 1, 1, 80 / 2, 45 / 2)
-  --draw shadow
+  -- draw shadow
   for i, l in pairs(lights) do
     if l.switch.on then
       for j, c in pairs(crates) do
@@ -226,7 +241,7 @@ function love.draw()
       lg.rectangle("line", l.switch.x, l.switch.y, 20, 20)
     end
   end
-  --draw level design grid
+  -- draw level design grid
   -- lg.setColor(1, 1, 1)
   -- for i = 1, screenWidth / 80 do
   --   for j = 1, screenHeight / 80 do
@@ -235,7 +250,7 @@ function love.draw()
   --   end
   -- end
   -- draw health bar
-  lg.setColor(1, 0, 0)
+  lg.setColor(27 / 255, 113 / 255, 169 / 255)
   lg.rectangle("fill", 25, screenHeight - 50, player.health * 2, 25)
   lg.printf(math.floor(player.health), player.health * 2 + 25 + 10, screenHeight - 50, 100)
   -- draw taking damage overlay
@@ -255,7 +270,7 @@ function love.draw()
       tooltip("Press E to Continue")
     end
   end
-  --draw menu overlay
+  -- draw menu overlay
   if player.health == 0 then
     menu("YOU DIED", "Press E to Restart")
   end

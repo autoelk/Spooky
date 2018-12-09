@@ -1,6 +1,7 @@
 Level = {}
 levels = {
   {
+    -- level 1
     {"start", 0, 0},
     {"end", 6, 0},
     {"crate", 1, 5},
@@ -14,6 +15,7 @@ levels = {
     {"light", true, - 1, - 1, 2, 4},
   },
   {
+    -- level 2
     {"start", 0, 0},
     {"end", 7, 6},
     {"crate", 3, 5},
@@ -26,6 +28,7 @@ levels = {
     {"light", true, - 1, - 1, 1, 2},
   },
   {
+    -- level 3
     {"start", 0, 0},
     {"end", 9, 4},
     {"crate", 2, 6},
@@ -34,6 +37,7 @@ levels = {
     {"light", true, 6, 2, 3, 4},
   },
   {
+    -- level 4
     {"start", 0, 0},
     {"end", 0, 6},
     {"crate", 1, 4},
@@ -48,6 +52,7 @@ levels = {
     {"light", true, 7, 5, 5, 3},
   },
   {
+    -- level 5
     {"start", 0, 0},
     {"end", 9, 4},
     {"crate", 5, 1},
@@ -56,6 +61,7 @@ levels = {
     {"light", true, 2, 6, 3, 0},
   },
   {
+    -- level 6
     {"start", 5, 4},
     {"end", 9, 2},
     {"crate", 3, 1},
@@ -65,6 +71,7 @@ levels = {
     {"light", true, 3, 6, 7, 1},
   },
   {
+    -- level 7
     {"start", 0, 3},
     {"end", 9, 3},
     {"crate", 5, 1},
@@ -88,11 +95,11 @@ function Level:Load(num)
     levelend = Level:CreateEnd()
     local amtCrates = levels[num][1][2] or math.random(2, 5)
     local amtLights = levels[num][1][3] or math.random(1, 3)
-    --create crates
+    -- create crates
     for i = 1, amtCrates do
       table.insert(crates, Level:CreateCrate())
     end
-    --create lights
+    -- create lights
     for i = 1, amtLights do
       table.insert(lights, Level:CreateLight())
     end
@@ -109,6 +116,8 @@ function Level:Load(num)
       end
     end
   end
+  timer = 0
+  player.health = 100
   player.x = levelstart.x + (80 - 45) / 2
   player.y = levelstart.y + (80 - 45) / 2
   player.dir = 2
@@ -116,16 +125,19 @@ function Level:Load(num)
 end
 
 function Level:Reset()
+  -- reset shadows
   for i, l in pairs(lights) do
     for j, c in pairs(crates) do
       HC.remove(l.shadow[j])
       l.shadow[j] = nil
     end
   end
+  -- reset lights
   for i, l in pairs(lights) do
     HC.remove(l.switch)
     lights[i] = nil
   end
+  -- reset crates
   for i, c in pairs(crates) do
     HC.remove(c.col)
     crates[i] = nil
@@ -154,6 +166,7 @@ function Level:CreateLight (on, switchx, switchy, x, y)
   }
 
   light.switch = Level:CreateSwitch(switchx, switchy, on)
+  -- generate shadows
   light.shadow = {}
   for i, c in pairs(crates) do
     light.shadow[i] = HC.polygon(offsetsToPolygon(light, c))
