@@ -17,16 +17,6 @@ function love.load()
   for i = 1, 6 do
     concrete[i] = lg.newImage("Assets/concrete" .. i - 1 .. ".png")
   end
-  -- generate floor
-  floor = {}
-  for i = 1, screenWidth / 30 + 1 do
-    floor[i] = {}
-    for j = 1, screenHeight / 30 + 1 do
-      floor[i][j] = {}
-      floor[i][j].tile = concrete[math.random(1, #concrete)]
-      floor[i][j].rotation = math.random(1, 4) * math.pi / 2
-    end
-  end
   -- player
   player = {
     x = 500,

@@ -90,6 +90,8 @@ function Level:Load(num)
   lights = {}
   levelstart = {}
   levelend = {}
+  --create floor
+  floor = Level:CreateFloor()
   if levels[num][1][1] == "random" or num == 0 then
     levelstart = Level:CreateStart()
     levelend = Level:CreateEnd()
@@ -146,6 +148,20 @@ function Level:Reset()
   levelstart = nil
   HC.remove(levelend.col)
   levelend = nil
+end
+
+function Level:CreateFloor()
+  -- generate floor
+  local ground = {}
+  for i = 1, screenWidth / 30 + 1 do
+    ground[i] = {}
+    for j = 1, screenHeight / 30 + 1 do
+      ground[i][j] = {}
+      ground[i][j].tile = concrete[math.random(1, #concrete)]
+      ground[i][j].rotation = math.random(1, 4) * math.pi / 2
+    end
+  end
+  return ground
 end
 
 function Level:CreateCrate (x, y)
