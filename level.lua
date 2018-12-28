@@ -41,7 +41,6 @@ levels = {
     {"start", 0, 0},
     {"end", 0, 6},
     {"crate", 1, 4},
-    {"crate", 2, 0},
     {"crate", 2, 6},
     {"crate", 3, 3},
     {"crate", 4, 5},
@@ -119,7 +118,7 @@ function Level:Load(num)
     end
   end
   timer = 0
-  player.health = 100
+  player.health = player.maxhealth
   player.x = levelstart.x + (80 - 45) / 2
   player.y = levelstart.y + (80 - 45) / 2
   player.dir = 2
@@ -185,7 +184,7 @@ function Level:CreateLight (on, switchx, switchy, x, y)
   -- generate shadows
   light.shadow = {}
   for i, c in pairs(crates) do
-    light.shadow[i] = HC.polygon(offsetsToPolygon(light, c))
+    light.shadow[i] = HC.polygon(GenShadow(light, c))
     light.shadow[i].type = "shadow"
     light.shadow[i].on = light.switch.on
   end

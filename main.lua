@@ -27,6 +27,7 @@ function love.load()
     h = 45,
     dir = 0,
     speed = 200,
+    maxhealth = 100,
     health = 100,
     spr = lg.newImage("Assets/player.png")
   }
@@ -106,24 +107,25 @@ function love.update(dt)
   timer = timer + dt
   for i, l in pairs(lights) do
     -- sway lights
-    if timer % 2 < 0.5 then
-      l.x = l.x + (0.5 - (timer % 2)) * 50 * dt
-      l.y = l.y + (0.5 - (timer % 2)) * 50 * dt
-    elseif timer % 2 < 1 then
-      l.x = l.x - ((timer % 2) - 0.5) * 50 * dt
-      l.y = l.y - ((timer % 2) - 0.5) * 50 * dt
-    elseif timer % 2 < 1.5 then
-      l.x = l.x - (0.5 - ((timer % 2) - 1)) * 50 * dt
-      l.y = l.y - (0.5 - ((timer % 2) - 1)) * 50 * dt
-    elseif timer % 2 < 2 then
-      l.x = l.x + ((timer % 2) - 1.5) * 50 * dt
-      l.y = l.y + ((timer % 2) - 1.5) * 50 * dt
+    local swayspeed = 50
+    if timer % 2 <= 0.5 then
+      l.x = l.x + (0.5 - ((timer % 2) - 0)) * swayspeed * dt
+      l.y = l.y + (0.5 - ((timer % 2) - 0)) * swayspeed * dt
+    elseif timer % 2 <= 1 then
+      l.x = l.x - ((timer % 2) - 0.5) * swayspeed * dt
+      l.y = l.y - ((timer % 2) - 0.5) * swayspeed * dt
+    elseif timer % 2 <= 1.5 then
+      l.x = l.x - (0.5 - ((timer % 2) - 1)) * swayspeed * dt
+      l.y = l.y - (0.5 - ((timer % 2) - 1)) * swayspeed * dt
+    elseif timer % 2 <= 2 then
+      l.x = l.x + ((timer % 2) - 1.5) * swayspeed * dt
+      l.y = l.y + ((timer % 2) - 1.5) * swayspeed * dt
     end
     for j, c in pairs(crates) do
       -- update shadows
       HC.remove(l.shadow[j])
       l.shadow[j] = nil
-      l.shadow[j] = HC.polygon(offsetsToPolygon(l, c))
+      l.shadow[j] = HC.polygon(GenShadow(l, c))
       l.shadow[j].type = "shadow"
       l.shadow[j].on = l.switch.on
     end
@@ -132,8 +134,8 @@ function love.update(dt)
   if player.health > 0 then
     player.health = player.health + 100 * dt
   end
-  if player.health > 100 then
-    player.health = 100
+  if player.health > player.maxhealth then
+    player.health = player.maxhealth
   end
   if player.health < 0 then
     player.health = 0
@@ -145,12 +147,10 @@ function love.keypressed(key, scancode, isrepeat)
   if key == "e"then
     if won then
       won = false
-      player.health = 100
       currentLevel = 1
       Level:Reset()
       Level:Load(currentLevel)
     elseif player.health == 0 then
-      player.health = 100
       Level:Reset()
       Level:Load(currentLevel)
     elseif onEnd then
@@ -211,7 +211,7 @@ function love.draw()
     if l.switch.on then
       for j, c in pairs(crates) do
         lg.setColor(0, 0, 0, 0.5)
-        lg.polygon("fill", offsetsToPolygon(l, c))
+        lg.polygon("fill", GenShadow(l, c))
       end
     end
   end
@@ -236,7 +236,7 @@ function love.draw()
   -- for i = 1, screenWidth / 80 do
   --   for j = 1, screenHeight / 80 do
   --     lg.line(80 * i, 0, 80 * i, screenHeight)
-  --     lg.line(0, 80 * i, screenWidth, 80 * i)
+  --     lg.line(0, 80 * j, screenWidth, 80 * j)
   --   end
   -- end
   -- draw health bar
@@ -288,22 +288,7 @@ function menu(title, option)
   lg.printf(option, (screenWidth - 200) / 2, screenHeight - 150 + 37, 200, "center")
 end
 
-function offsetsToPolygon(l, c)
-  local top, bot = selectCorners(l, c)
-  local topX, topY = cornerNumToOffset(top)
-  local botX, botY = cornerNumToOffset(bot)
-  local distance = 1440 / math.sqrt(math.abs((c.x + 40) - l.x) * math.abs((c.x + 40) - l.x) + math.abs((c.y + 40) - l.y) * math.abs((c.y + 40) - l.y))
-  return c.x + botX,
-  c.y + botY,
-  c.x + topX,
-  c.y + topY,
-  c.x + topX + distance * (c.x + topX - l.x),
-  c.y + topY + distance * (c.y + topY - l.y),
-  c.x + botX + distance * (c.x + botX - l.x),
-  c.y + botY + distance * (c.y + botY - l.y)
-end
-
-function selectCorners(l, c)
+function GenShadow(l, c)
   local slopes = {}
   slopes[1] = findSlope(l.x, l.y, c.x + 80, c.y + 80) -- bottom right
   slopes[2] = findSlope(l.x, l.y, c.x + 80, c.y) -- top right
@@ -311,25 +296,45 @@ function selectCorners(l, c)
   slopes[4] = findSlope(l.x, l.y, c.x, c.y) -- top left
   local max, min = -10000000, 10000000
   local top, bot = 0, 0
-  for i = 1, 4 do
-    if slopes[i] > max then
-      max = slopes[i]
-      if l.x >= c.x and l.x <= c.x + 80 then
+  local topX, topY = 0, 0
+  local botX, botY = 0, 0
+  local topDistance, botDistance = 0, 0
+  if l.x >= c.x and l.x <= c.x + 80 then
+    for i = 1, 4 do
+      if slopes[i] > max then
+        max = slopes[i]
         top = 5 - i
-      else
-        top = i
+      end
+      if slopes[i] < min then
+        min = slopes[i]
+        bot = 5 - i
       end
     end
-    if slopes[i] < min then
-      min = slopes[i]
-      if l.x >= c.x and l.x <= c.x + 80 then
-        bot = 5 - i
-      else
+  end
+  if l.x < c.x or l.x > c.x + 80 then
+    for i = 1, 4 do
+      if slopes[i] > max then
+        max = slopes[i]
+        top = i
+      end
+      if slopes[i] < min then
+        min = slopes[i]
         bot = i
       end
     end
   end
-  return top, bot
+  topX, topY = cornerNumToOffset(top)
+  topDistance = (screenWidth * 1.44) / math.sqrt(math.abs((c.x + topX) - l.x) * math.abs((c.x + topX) - l.x) + math.abs((c.y + topY) - l.y) * math.abs((c.y + topY) - l.y))
+  botX, botY = cornerNumToOffset(bot)
+  botDistance = (screenWidth * 1.44) / math.sqrt(math.abs((c.x + botX) - l.x) * math.abs((c.x + botX) - l.x) + math.abs((c.y + botY) - l.y) * math.abs((c.y + botY) - l.y))
+  return c.x + botX,
+  c.y + botY,
+  c.x + topX,
+  c.y + topY,
+  c.x + topX + topDistance * (c.x + topX - l.x),
+  c.y + topY + topDistance * (c.y + topY - l.y),
+  c.x + botX + botDistance * (c.x + botX - l.x),
+  c.y + botY + botDistance * (c.y + botY - l.y)
 end
 
 function cornerNumToOffset(cornerNum)
